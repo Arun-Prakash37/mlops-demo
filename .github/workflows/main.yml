@@ -1,0 +1,48 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      IMAGE_NAME: my-python-app
+      CONTAINER_NAME: my-running-app
+
+    steps:
+      - name: 1. Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 2. Test
+        run: |
+          python -m unittest discover -s . -p "test_*.py"
+
+      - name: 3. Build
+        run: |
+          python -m compileall .
+
+      - name: 4. Docker Image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:latest .
+
+      - name: 5. Deploy Container
+        run: |
+          docker stop ${{ env.CONTAINER_NAME }} || true
+          docker rm ${{ env.CONTAINER_NAME }} || true
+          docker run -d --name ${{ env.CONTAINER_NAME }} ${{ env.IMAGE_NAME }}:latest
+
+      - name: 6. Verify
+        run: |
+          docker ps -f name=${{ env.CONTAINER_NAME }}
+          docker logs ${{ env.CONTAINER_NAME }}
